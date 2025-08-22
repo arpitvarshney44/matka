@@ -48,8 +48,8 @@ app.use(cors({
       : [
           'http://localhost:3000',  // User client
           'http://localhost:5173',  // User client (Vite default)
-          'http://localhost:3001',  // Admin client
-          'http://localhost:8080',  // Alternative port
+          'https://rajkalyan.in',  // Admin client
+          'https://admin.rajkalyan.in',  // Alternative port
         ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
