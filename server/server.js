@@ -34,30 +34,26 @@ const resultsSessionRoutes = require('./routes/resultsSession')
 
 const app = express()
 
+// Strict allowed origins
+const ALLOWED_ORIGINS = [
+  'https://rajkalyan.in',
+  'https://admin.rajkalyan.in',
+]
+
 // Middleware
 app.use(helmet())
 app.use(morgan('combined'))
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Get allowed origins from environment variables
-    const allowedOrigins = process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-      : [
-          'http://localhost:3000',  // User client
-          'http://localhost:5173',  // User client (Vite default)
-          'https://rajkalyan.in',  // Admin client
-          'https://admin.rajkalyan.in',  // Alternative port
-        ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) {
+      // Block requests without Origin header to avoid permissive cross-origin
+      return callback(new Error('Origin header required by CORS'))
     }
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true)
+    }
+    console.log(`CORS blocked origin: ${origin}`)
+    return callback(new Error('Not allowed by CORS'))
   },
   credentials: true
 }))
@@ -102,19 +98,20 @@ app.use('/api/fund-request', fundRequestRoutes)
 app.use('/api/bets', betsRoutes)
 app.use('/api/results-session', resultsSessionRoutes)
 
-// Serve static files from uploads directory with CORS headers
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200)
-  } else {
-    express.static(path.join(__dirname, 'uploads'))(req, res, next)
-  }
-})
+// Serve static files from uploads directory with strict CORS
+app.use(
+  '/uploads',
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(new Error('Origin header required by CORS'))
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true)
+      console.log(`CORS blocked origin on /uploads: ${origin}`)
+      return callback(new Error('Not allowed by CORS'))
+    },
+    credentials: false,
+  }),
+  express.static(path.join(__dirname, 'uploads'))
+)
 
 // API route for checking client type
 app.get('/api/client-info', (req, res) => {
