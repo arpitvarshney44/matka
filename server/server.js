@@ -34,12 +34,14 @@ const resultsSessionRoutes = require('./routes/resultsSession')
 
 const app = express()
 
+
+
 // Strict allowed origins
 const ALLOWED_ORIGINS = [
   'https://rajkalyan.in',
   'https://admin.rajkalyan.in',
-  'http://localhost:3000',
-  'http://localhost:3001',
+
+
 ]
 
 // Middleware
