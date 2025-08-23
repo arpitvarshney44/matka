@@ -14,7 +14,8 @@ const StarlineDeclareResult = () => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     gameId: '',
-    winningNumber: ''
+    winningNumber: '',
+    digit: ''
   })
 
   useEffect(() => {
@@ -84,6 +85,10 @@ const StarlineDeclareResult = () => {
       toast.error('Please enter a valid 3-digit winning number')
       return false
     }
+    if (!formData.digit || !/^[0-9]$/.test(formData.digit)) {
+      toast.error('Please enter a valid single digit (0-9)')
+      return false
+    }
     return true
   }
 
@@ -96,7 +101,8 @@ const StarlineDeclareResult = () => {
       const resultData = {
         gameId: formData.gameId,
         gameDate: formData.date,
-        winningNumber: formData.winningNumber
+        winningNumber: formData.winningNumber,
+        digit: parseInt(formData.digit)
       }
 
       console.log('Sending starline result data:', resultData)
@@ -116,7 +122,8 @@ const StarlineDeclareResult = () => {
         setFormData({
           date: new Date().toISOString().split('T')[0],
           gameId: '',
-          winningNumber: ''
+          winningNumber: '',
+          digit: ''
         })
         // Refresh recent results
         fetchRecentResults()
@@ -225,11 +232,29 @@ const StarlineDeclareResult = () => {
               />
             </div>
 
+            {/* Digit Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Single Digit (0-9)
+              </label>
+              <input
+                type="text"
+                value={formData.digit}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 1)
+                  handleInputChange('digit', value)
+                }}
+                placeholder="Enter single digit"
+                maxLength={1}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center font-mono text-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
                 onClick={handleDeclareResult}
-                disabled={declaring || !formData.gameId || !formData.winningNumber}
+                disabled={declaring || !formData.gameId || !formData.winningNumber || !formData.digit}
                 className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {declaring ? (
@@ -252,12 +277,13 @@ const StarlineDeclareResult = () => {
             </div>
 
             {/* Preview */}
-            {formData.winningNumber && (
+            {(formData.winningNumber || formData.digit) && (
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h3 className="text-sm font-medium text-blue-800 mb-2">Result Preview:</h3>
                 <div className="text-center">
+                  <span className="text-sm text-blue-700">Result: </span>
                   <span className="text-3xl font-mono font-bold text-blue-900">
-                    {formData.winningNumber}
+                    {formData.winningNumber && formData.digit ? `${formData.winningNumber}-${formData.digit}` : `${formData.winningNumber || '***'}-${formData.digit || '*'}`}
                   </span>
                 </div>
               </div>
@@ -301,7 +327,7 @@ const StarlineDeclareResult = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-lg font-mono font-bold text-blue-600">
-                          {result.winningNumber}
+                          {result.digit !== undefined ? `${result.winningNumber}-${result.digit}` : result.winningNumber}
                         </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">

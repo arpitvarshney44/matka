@@ -1077,7 +1077,7 @@ router.get('/check-winners', async (req, res) => {
 // @access  Private/Admin
 router.get('/starline-check-winners', async (req, res) => {
   try {
-    const { gameId, date, winningNumber } = req.query
+    const { gameId, date, winningNumber, digit } = req.query
 
     if (!gameId || !date) {
       return res.status(400).json({
@@ -1124,7 +1124,7 @@ router.get('/starline-check-winners', async (req, res) => {
       pendingBetAmount
     }
 
-    // If winning number is provided, calculate winners
+    // If winning number or digit is provided, calculate winners
     if (winningNumber && winningNumber.length === 3) {
       // Get starline rates for payout calculation
       const rates = await StarlineGameRate.findOne()
@@ -1149,8 +1149,13 @@ router.get('/starline-check-winners', async (req, res) => {
 
         switch (bet.betType) {
           case 'single digit':
-            // Check if the last digit of winning number matches bet number
-            isWinner = winningNumberStr.slice(-1) === betNumberStr
+            // Check if the digit matches bet number for single digit bets
+            if (digit) {
+              isWinner = String(digit).trim() === betNumberStr
+            } else {
+              // Fallback to last digit of winning number if digit not provided
+              isWinner = winningNumberStr.slice(-1) === betNumberStr
+            }
             if (isWinner) {
               multiplier = gameRates.singleDigit?.max || 9.5
               winAmount = bet.betAmount * multiplier
@@ -1417,21 +1422,29 @@ router.put('/withdraw-requests/:id', [
       return res.status(400).json({ message: 'Request has already been processed' })
     }
 
-    // If approving withdrawal, deduct from user balance
-    if (status === 'approved') {
+    console.log(`Processing withdrawal status change: ${withdrawRequest.status} -> ${status} for request ${requestId}`)
+
+    // If rejecting withdrawal, add money back to user balance (since it was deducted during request)
+    if (status === 'rejected') {
+      console.log('Restoring balance for rejected withdrawal')
       const user = await User.findById(withdrawRequest.userId)
       if (!user) {
         return res.status(404).json({ message: 'User not found' })
       }
 
-      if (user.balance < withdrawRequest.amount) {
-        return res.status(400).json({ message: 'User has insufficient balance' })
-      }
-
-      user.balance -= withdrawRequest.amount
+      const oldBalance = user.balance
+      console.log(`Restoring balance for user ${user._id}: ${oldBalance} + ${withdrawRequest.amount} = ${oldBalance + withdrawRequest.amount}`)
+      user.balance = Number(user.balance) + Number(withdrawRequest.amount)
       await user.save()
+      
+      // Verify the save worked
+      const updatedUser = await User.findById(withdrawRequest.userId)
+      console.log(`Balance restored successfully. Old: ${oldBalance}, New: ${updatedUser.balance}`)
+    }
 
-      console.log(`Withdraw request ${requestId} approved. User ${user.name} balance updated to ${user.balance}`)
+    // If approving withdrawal, no balance change needed (already deducted during request)
+    if (status === 'approved') {
+      console.log(`Withdraw request ${requestId} approved. No balance change needed (already deducted)`)
     }
 
     // Update withdraw request

@@ -83,11 +83,13 @@ const StarlineGameCard = ({
         </div>
 
         {/* Last Result */}
-        {showLastResult && game.currentResult && (
+        {showLastResult && (game.currentResult || game.currentDigit) && (
           <div className="mb-4 p-3 bg-blue-50 rounded-md">
             <div className="flex justify-between items-center">
               <span className="text-sm text-blue-700">Last Result:</span>
-              <span className="text-lg font-bold text-blue-900">{game.currentResult}</span>
+              <span className="text-lg font-bold text-blue-900">
+                {game.currentDigit !== undefined ? `${game.currentResult || '***'}-${game.currentDigit}` : (game.currentResult || '***')}
+              </span>
             </div>
           </div>
         )}
@@ -123,6 +125,7 @@ StarlineGameCard.propTypes = {
     minBet: PropTypes.number.isRequired,
     maxBet: PropTypes.number.isRequired,
     currentResult: PropTypes.string,
+    currentDigit: PropTypes.number,
     isActive: PropTypes.bool
   }).isRequired,
   onBetClick: PropTypes.func,

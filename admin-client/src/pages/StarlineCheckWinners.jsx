@@ -24,7 +24,8 @@ const StarlineCheckWinners = () => {
   const [formData, setFormData] = useState({
     date: searchParams.get('date') || new Date().toISOString().split('T')[0],
     gameId: searchParams.get('gameId') || '',
-    winningNumber: searchParams.get('winningNumber') || ''
+    winningNumber: searchParams.get('winningNumber') || '',
+    digit: searchParams.get('digit') || ''
   })
 
   useEffect(() => {
@@ -77,6 +78,16 @@ const StarlineCheckWinners = () => {
     }
   }
 
+  const handleDigitChange = (value) => {
+    // Only allow 1 digit
+    if (value.length <= 1 && /^\d*$/.test(value)) {
+      setFormData(prev => ({
+        ...prev,
+        digit: value
+      }))
+    }
+  }
+
   const handleCheckWinners = async () => {
     if (!formData.date || !formData.gameId) {
       toast.error('Please select date and game')
@@ -89,7 +100,8 @@ const StarlineCheckWinners = () => {
       const queryParams = new URLSearchParams({
         gameId: formData.gameId,
         date: formData.date,
-        ...(formData.winningNumber && { winningNumber: formData.winningNumber })
+        ...(formData.winningNumber && { winningNumber: formData.winningNumber }),
+        ...(formData.digit && { digit: formData.digit })
       })
 
       console.log('Making starline request to:', `${API_URL}/admin/starline-check-winners?${queryParams}`)
@@ -117,8 +129,9 @@ const StarlineCheckWinners = () => {
         console.log('Starline winners found:', data.winners?.length || 0)
         console.log('Starline all bets found:', data.allBets?.length || 0)
         
-        if (formData.winningNumber) {
-          toast.success(`Found ${data.winners?.length || 0} winners for number ${formData.winningNumber}`)
+        if (formData.winningNumber || formData.digit) {
+          const resultText = formData.winningNumber && formData.digit ? `${formData.winningNumber}-${formData.digit}` : (formData.winningNumber || formData.digit)
+          toast.success(`Found ${data.winners?.length || 0} winners for result ${resultText}`)
         } else {
           toast.success(`Found ${data.allBets?.length || 0} pending bets`)
         }
@@ -232,8 +245,23 @@ const StarlineCheckWinners = () => {
                 maxLength={3}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center font-mono text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            {/* Digit (Optional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Digit (Optional - single digit)
+              </label>
+              <input
+                type="text"
+                value={formData.digit}
+                onChange={(e) => handleDigitChange(e.target.value)}
+                placeholder="0"
+                maxLength={1}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center font-mono text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
               <p className="mt-1 text-xs text-gray-500">
-                Leave empty to see all pending bets, or enter 3-digit number to check potential winners
+                Leave both empty to see all pending bets, or enter winning number and/or digit to check potential winners
               </p>
             </div>
 
@@ -249,7 +277,7 @@ const StarlineCheckWinners = () => {
                   Checking...
                 </div>
               ) : (
-                formData.winningNumber ? 'Check Winners' : 'View Pending Bets'
+                (formData.winningNumber || formData.digit) ? 'Check Winners' : 'View Pending Bets'
               )}
             </button>
           </div>
@@ -259,7 +287,7 @@ const StarlineCheckWinners = () => {
         {(winners.length > 0 || allBets.length > 0) && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {formData.winningNumber ? 'Winner Statistics' : 'Bet Statistics'}
+              {(formData.winningNumber || formData.digit) ? 'Winner Statistics' : 'Bet Statistics'}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-blue-50 rounded-lg p-4 text-center">
@@ -270,7 +298,7 @@ const StarlineCheckWinners = () => {
                 <div className="text-2xl font-bold text-orange-600">{formatCurrency(winnerStats.totalBetAmount)}</div>
                 <div className="text-sm text-orange-800">Total Bet Amount</div>
               </div>
-              {formData.winningNumber && (
+              {(formData.winningNumber || formData.digit) && (
                 <>
                   <div className="bg-green-50 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-green-600">{winnerStats.totalWinners}</div>
@@ -295,10 +323,10 @@ const StarlineCheckWinners = () => {
         )}
 
         {/* Winners List */}
-        {formData.winningNumber && winners.length > 0 && (
+        {(formData.winningNumber || formData.digit) && winners.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Winners for Number: {formData.winningNumber}
+              Winners for Result: {formData.winningNumber && formData.digit ? `${formData.winningNumber}-${formData.digit}` : (formData.winningNumber || formData.digit)}
             </h2>
             <div className="space-y-3">
               {winners.map((winner, index) => (
@@ -347,11 +375,11 @@ const StarlineCheckWinners = () => {
         {allBets.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {formData.winningNumber ? 'All Bets' : 'Pending Bets'}
+              {(formData.winningNumber || formData.digit) ? 'All Bets' : 'Pending Bets'}
             </h2>
             <div className="space-y-3">
               {allBets.map((bet, index) => {
-                const isWinner = formData.winningNumber && winners.some(w => w._id === bet._id)
+                const isWinner = (formData.winningNumber || formData.digit) && winners.some(w => w._id === bet._id)
                 return (
                   <div key={bet._id || index} className={`border rounded-lg p-4 ${isWinner ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between">

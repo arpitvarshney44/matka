@@ -38,11 +38,13 @@ const app = express()
 const ALLOWED_ORIGINS = [
   'https://rajkalyan.in',
   'https://admin.rajkalyan.in',
+  'http://localhost:3000',
+  'http://localhost:3001',
 ]
 
 // Middleware
 app.use(helmet())
-app.use(morgan('combined'))
+// app.use(morgan('combined')) // Disabled to reduce log verbosity
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {

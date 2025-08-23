@@ -20,6 +20,7 @@ const { requireAdminOrSubAdmin } = require('../middleware/auth')
 router.post('/', requireAdminOrSubAdmin, [
   body('gameId').isString().withMessage('Game ID is required'),
   body('winningNumber').matches(/^\d{3}$/).withMessage('Winning number must be 3 digits'),
+  body('digit').isInt({ min: 0, max: 9 }).withMessage('Digit must be between 0 and 9'),
   body('gameDate').optional().isISO8601().withMessage('Game date must be valid')
 ], async (req, res) => {
   try {
@@ -32,7 +33,7 @@ router.post('/', requireAdminOrSubAdmin, [
       })
     }
 
-    const { gameId, winningNumber, gameDate } = req.body
+    const { gameId, winningNumber, digit, gameDate } = req.body
     const declaredBy = req.user._id
 
     // Set game date to today if not provided
@@ -115,8 +116,8 @@ router.post('/', requireAdminOrSubAdmin, [
 
       switch (bet.betType) {
         case 'single digit':
-          // Check if the last digit of winning number matches bet number
-          isWinner = winningNumber.slice(-1) === bet.betNumber
+          // Check if the digit matches bet number for single digit bets
+          isWinner = digit.toString() === bet.betNumber
           if (isWinner) {
             multiplier = gameRates.singleDigit?.max || 9.5
             winAmount = bet.betAmount * multiplier
@@ -172,6 +173,7 @@ router.post('/', requireAdminOrSubAdmin, [
       gameName: game.gameName,
       gameDate: resultDate,
       winningNumber,
+      digit,
       declaredBy,
       totalBets,
       totalBetAmount,
@@ -320,6 +322,7 @@ router.get('/:id', async (req, res) => {
         gameName: result.gameName,
         gameDate: result.gameDate,
         winningNumber: result.winningNumber,
+        digit: result.digit,
         declaredAt: result.declaredAt
       }
 
@@ -367,7 +370,7 @@ router.get('/game/:gameId/recent', async (req, res) => {
       gameId,
       status: 'completed'
     })
-      .select('gameDate winningNumber declaredAt')
+      .select('gameDate winningNumber digit declaredAt')
       .sort({ gameDate: -1, declaredAt: -1 })
       .limit(parseInt(limit))
 

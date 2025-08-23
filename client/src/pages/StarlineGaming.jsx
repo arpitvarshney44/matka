@@ -451,7 +451,7 @@ const StarlineGaming = () => {
                                         <div className="mb-1">
                                             {declaredResult ? (
                                                 <p className="text-blue-600 font-bold text-lg tracking-wider">
-                                                    {declaredResult}
+                                                    {game.digit !== undefined ? `${declaredResult}-${game.digit}` : declaredResult}
                                                 </p>
                                             ) : (
                                                 <p className="text-gray-600 text-xs tracking-widest">* * *</p>

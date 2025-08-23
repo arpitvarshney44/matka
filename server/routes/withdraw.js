@@ -7,6 +7,22 @@ const { auth } = require('../middleware/auth')
 
 const router = express.Router()
 
+// Helper function to convert 12-hour time to 24-hour format
+function convertTo24Hour(time12h) {
+  const [time, modifier] = time12h.split(' ')
+  let [hours, minutes] = time.split(':')
+  
+  if (hours === '12') {
+    hours = '00'
+  }
+  
+  if (modifier === 'PM' || modifier === 'pm') {
+    hours = parseInt(hours, 10) + 12
+  }
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes}`
+}
+
 // @route   POST /api/withdraw/request
 // @desc    Create a withdrawal request
 // @access  Private
@@ -56,12 +72,36 @@ router.post('/request', [
       return res.status(400).json({ message: 'Insufficient balance' })
     }
 
-    // Check withdrawal time (basic check - can be enhanced)
+    // Check withdrawal time restrictions
     const now = new Date()
-    if (now.getDay() === 0) { // Sunday
+    
+    // Check if Sunday
+    if (now.getDay() === 0) {
       return res.status(400).json({ 
         message: 'Withdrawals are closed on Sundays' 
       })
+    }
+
+    // Check withdrawal timing from settings
+    if (settings?.withdrawalOpenTime && settings?.withdrawalCloseTime) {
+      const currentTime = now.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+      
+      // Convert settings time to 24-hour format for comparison
+      const openTime = convertTo24Hour(settings.withdrawalOpenTime)
+      const closeTime = convertTo24Hour(settings.withdrawalCloseTime)
+      
+      console.log(`Withdrawal time check: Current: ${currentTime}, Open: ${openTime}, Close: ${closeTime}`)
+      
+      if (currentTime < openTime || currentTime > closeTime) {
+        return res.status(400).json({ 
+          message: `Withdrawals are only allowed between ${settings.withdrawalOpenTime} and ${settings.withdrawalCloseTime}` 
+        })
+      }
     }
 
     // Get account details based on method
@@ -108,6 +148,12 @@ router.post('/request', [
       default:
         return res.status(400).json({ message: 'Invalid withdrawal method' })
     }
+
+    // Deduct balance immediately upon request
+    console.log(`Deducting balance for user ${user._id}: ${user.balance} - ${amount} = ${user.balance - amount}`)
+    user.balance -= amount
+    await user.save()
+    console.log(`Balance deducted successfully. New balance: ${user.balance}`)
 
     // Create withdrawal request
     const withdrawal = new Withdrawal({
@@ -294,23 +340,53 @@ router.put('/admin/:id/status', [
       return res.status(404).json({ message: 'Withdrawal request not found' })
     }
 
-    // If approving withdrawal, deduct from user balance
-    if (status === 'approved' && withdrawal.status === 'pending') {
-      const user = await User.findById(withdrawal.userId)
-      if (user.balance < withdrawal.amount) {
-        return res.status(400).json({ message: 'User has insufficient balance' })
+    console.log(`Processing status change: ${withdrawal.status} -> ${status} for withdrawal ${withdrawalId}`)
+
+    // If rejecting withdrawal, add money back to user balance
+    if (status === 'rejected' && withdrawal.status === 'pending') {
+      console.log('Condition matched: rejecting pending withdrawal')
+      try {
+        const user = await User.findById(withdrawal.userId)
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        
+        const oldBalance = user.balance
+        console.log(`Restoring balance for user ${user._id}: ${oldBalance} + ${withdrawal.amount} = ${oldBalance + withdrawal.amount}`)
+        user.balance = Number(user.balance) + Number(withdrawal.amount)
+        await user.save()
+        
+        // Verify the save worked
+        const updatedUser = await User.findById(withdrawal.userId)
+        console.log(`Balance restored successfully. Old: ${oldBalance}, New: ${updatedUser.balance}`)
+      } catch (error) {
+        console.error('Error restoring balance:', error)
+        return res.status(500).json({ message: 'Failed to restore balance' })
       }
-      
-      // Deduct amount from user balance
-      user.balance -= withdrawal.amount
-      await user.save()
+    } else {
+      console.log(`Condition NOT matched for pending rejection: status=${status}, withdrawal.status=${withdrawal.status}`)
     }
 
     // If rejecting a previously approved withdrawal, add back to user balance
     if (status === 'rejected' && withdrawal.status === 'approved') {
-      const user = await User.findById(withdrawal.userId)
-      user.balance += withdrawal.amount
-      await user.save()
+      try {
+        const user = await User.findById(withdrawal.userId)
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        
+        const oldBalance = user.balance
+        console.log(`Restoring balance for user ${user._id}: ${oldBalance} + ${withdrawal.amount} = ${oldBalance + withdrawal.amount}`)
+        user.balance = Number(user.balance) + Number(withdrawal.amount)
+        await user.save()
+        
+        // Verify the save worked
+        const updatedUser = await User.findById(withdrawal.userId)
+        console.log(`Balance restored successfully. Old: ${oldBalance}, New: ${updatedUser.balance}`)
+      } catch (error) {
+        console.error('Error restoring balance:', error)
+        return res.status(500).json({ message: 'Failed to restore balance' })
+      }
     }
 
     // Update withdrawal

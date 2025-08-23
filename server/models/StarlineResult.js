@@ -31,6 +31,12 @@ const starlineResultSchema = new mongoose.Schema({
             message: 'Winning number must be a 3-digit number'
         }
     },
+    digit: {
+        type: Number,
+        required: true,
+        min: [0, 'Digit must be between 0 and 9'],
+        max: [9, 'Digit must be between 0 and 9']
+    },
     declaredBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

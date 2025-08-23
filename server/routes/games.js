@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
           
           if (openResult && closeResult) {
             // Both sessions available
-            resultString = `${openResult.pana}-${openResult.digit}-${closeResult.pana}`;
+            resultString = `${openResult.pana}-${openResult.digit}${closeResult.digit}-${closeResult.pana}`;
           } else if (openResult) {
             // Only open session available
             resultString = `${openResult.pana}-${openResult.digit}-***`;

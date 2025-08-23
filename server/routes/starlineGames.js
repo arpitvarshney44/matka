@@ -109,6 +109,7 @@ router.get('/', auth, validateQueryParams, async (req, res) => {
 
         const gameObj = game.toObject()
         gameObj.result = resultString
+        gameObj.digit = todayResult?.digit
         gameObj.currentStatus = getGameStatus(game, new Date(), hasResultToday)
         return gameObj
       })
